@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # Trackserver2 (all-in-one for development)
+  trackserver2:
+    build: .
+    ports:
+      - "4509:4509"   # ciNet protocol server
+      - "8080:8080"   # REST API + WebSocket
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://trackserver:password@db:5432/trackserver2
+      - JWT_SECRET=${JWT_SECRET:-development-secret-change-me}
+      - CINET_HOST=0.0.0.0
+      - CINET_PORT=4509
+      - API_HOST=0.0.0.0
+      - API_PORT=8080
+      - LOG_LEVEL=INFO
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=trackserver
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=trackserver2
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trackserver -d trackserver2"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@local.dev
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    restart: unless-stopped
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:

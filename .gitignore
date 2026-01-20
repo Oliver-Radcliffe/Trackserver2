@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+desktop.ini
+Thumbs.db
+
+# Node/Dashboard
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.env
+
+# Logs
+*.log
+*.csv
+
+# Legacy/Reference code
+20-TrackServer/
+20-TrackServer-DB/
+20-UDPMonitor/
+20-UDPServer/
+
+# Documentation (binary files)
+*.pdf
+*.docx
+*.doc
