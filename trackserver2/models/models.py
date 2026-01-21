@@ -77,6 +77,46 @@ class Position(Base):
     cell_id = Column(Integer)
     operator = Column(String(16))
 
+    # Cellular network details
+    mcc = Column(Integer)                    # Mobile Country Code
+    mnc = Column(Integer)                    # Mobile Network Code
+    network_type = Column(String(10))        # 2G, 3G, 4G, LTE
+    timing_advance = Column(Integer)         # GSM timing advance
+    bit_error_rate = Column(Integer)         # GSM bit error rate
+
+    # GPS quality
+    gps_valid = Column(Boolean)              # GPS fix valid
+    gps_accuracy = Column(String(20))        # High/Medium/Low/No Confidence
+
+    # Device I/O
+    input_state = Column(String(10))         # High/Low
+    output_state = Column(String(10))        # Open/Closed
+    input_triggered = Column(Boolean)        # Input trigger flag
+
+    # Power
+    power_source = Column(String(20))        # Integrated Battery, External
+    external_battery_volts = Column(Float)   # External battery voltage
+    external_battery_low = Column(Boolean)   # External battery low flag
+    battery_used_mah = Column(Integer)       # Integrated battery used mAh
+
+    # Message metadata
+    message_type = Column(String(20))        # Position, Status, GSM, Diagnostic
+    packet_number = Column(Integer)          # Packet sequence number
+    packet_index = Column(Integer)           # Index within packet
+
+    # Additional status
+    geozone = Column(Integer)                # Geozone ID
+    alerts = Column(Integer)                 # Alert flags
+    tamper = Column(String(10))              # Enabled/Disabled
+
+    # RF/Config
+    rf_mode = Column(String(10))             # Off, On
+    rf_channel = Column(Integer)             # RF channel number
+    df_pulse_type = Column(String(10))       # DF10, etc.
+    cinet_mode = Column(String(10))          # Fast, etc.
+    config_id = Column(Integer)              # Configuration ID
+    firmware_version = Column(String(20))    # Firmware version string
+
     # Relationships
     device = relationship("Device", back_populates="positions")
 

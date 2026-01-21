@@ -84,6 +84,11 @@ export const devicesApi = {
     const response = await api.get(`/devices/${id}/positions`, { params });
     return response.data;
   },
+
+  getDatesWithData: async (id) => {
+    const response = await api.get(`/devices/${id}/dates-with-data`);
+    return response.data;
+  },
 };
 
 // Geofences API

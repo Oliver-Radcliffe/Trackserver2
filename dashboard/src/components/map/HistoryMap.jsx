@@ -42,18 +42,38 @@ function createArrowIcon(bearing) {
   });
 }
 
-// Fit map to track bounds
-function MapBoundsController({ positions }) {
+// Fit map to track bounds (only on initial load)
+function MapBoundsController({ positions, initialFit }) {
   const map = useMap();
+  const hasFitted = useRef(false);
 
   useEffect(() => {
-    if (positions && positions.length > 0) {
+    if (initialFit && positions && positions.length > 0 && !hasFitted.current) {
       const bounds = L.latLngBounds(
         positions.map(p => [p.latitude, p.longitude])
       );
       map.fitBounds(bounds, { padding: [50, 50] });
+      hasFitted.current = true;
     }
-  }, [positions, map]);
+  }, [positions, map, initialFit]);
+
+  // Reset when positions change completely (new track loaded)
+  useEffect(() => {
+    hasFitted.current = false;
+  }, [positions.length > 0 ? positions[0]?.id : null]);
+
+  return null;
+}
+
+// Follow playback position
+function PlaybackFollower({ position, followTarget }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (followTarget && position) {
+      map.panTo([position.latitude, position.longitude], { animate: true, duration: 0.3 });
+    }
+  }, [position, followTarget, map]);
 
   return null;
 }
@@ -81,7 +101,7 @@ function PlaybackMarker({ position, bearing }) {
   );
 }
 
-export default function HistoryMap({ positions, playbackIndex, onPointClick }) {
+export default function HistoryMap({ positions, playbackIndex, onPointClick, followTarget = false }) {
   const mapRef = useRef(null);
 
   // Default center
@@ -140,7 +160,8 @@ export default function HistoryMap({ positions, playbackIndex, onPointClick }) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <MapBoundsController positions={positions} />
+        <MapBoundsController positions={positions} initialFit={true} />
+        <PlaybackFollower position={playbackPosition} followTarget={followTarget} />
 
         {/* Track polyline */}
         {trackCoordinates.length > 1 && (

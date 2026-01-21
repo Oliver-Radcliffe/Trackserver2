@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import Layout from '../components/layout/Layout';
 import HistoryMap from '../components/map/HistoryMap';
+import TimelineBar from '../components/timeline/TimelineBar';
+import DatePickerWithData from '../components/common/DatePickerWithData';
 import useDevicesStore from '../stores/devicesStore';
 import { devicesApi } from '../api/client';
 
@@ -13,10 +15,17 @@ export default function HistoryPage() {
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
+  // Dates with data (for calendar highlighting)
+  const [datesWithData, setDatesWithData] = useState([]);
+  const [loadingDates, setLoadingDates] = useState(false);
+
   // Data state
   const [positions, setPositions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Time range filter state
+  const [timeRange, setTimeRange] = useState({ start: 0, end: 24 });
 
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -26,6 +35,11 @@ export default function HistoryPage() {
 
   // Stats
   const [stats, setStats] = useState(null);
+
+  // UI state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [timelineCollapsed, setTimelineCollapsed] = useState(false);
+  const [followTarget, setFollowTarget] = useState(false);
 
   // Fetch devices on mount
   useEffect(() => {
@@ -38,6 +52,36 @@ export default function HistoryPage() {
       setSelectedDeviceId(devices[0].id);
     }
   }, [devices, selectedDeviceId]);
+
+  // Fetch dates with data when device changes
+  useEffect(() => {
+    if (!selectedDeviceId) {
+      setDatesWithData([]);
+      return;
+    }
+
+    const fetchDatesWithData = async () => {
+      setLoadingDates(true);
+      try {
+        const response = await devicesApi.getDatesWithData(selectedDeviceId);
+        setDatesWithData(response.dates || []);
+
+        // Auto-select the most recent date with data
+        if (response.dates && response.dates.length > 0) {
+          const lastDate = response.dates[response.dates.length - 1];
+          setStartDate(lastDate);
+          setEndDate(lastDate);
+        }
+      } catch (err) {
+        console.error('Failed to fetch dates with data:', err);
+        setDatesWithData([]);
+      } finally {
+        setLoadingDates(false);
+      }
+    };
+
+    fetchDatesWithData();
+  }, [selectedDeviceId]);
 
   // Fetch positions when device or date changes
   const fetchPositions = useCallback(async () => {
@@ -109,12 +153,23 @@ export default function HistoryPage() {
     return `${hours}h ${minutes}m`;
   };
 
+  // Filter positions based on time range
+  const filteredPositions = useMemo(() => {
+    if (!positions || positions.length === 0) return [];
+
+    return positions.filter(pos => {
+      const date = new Date(pos.timestamp);
+      const hour = date.getHours() + date.getMinutes() / 60;
+      return hour >= timeRange.start && hour <= timeRange.end;
+    });
+  }, [positions, timeRange]);
+
   // Playback controls
   const startPlayback = () => {
-    if (positions.length === 0) return;
+    if (filteredPositions.length === 0) return;
 
     setIsPlaying(true);
-    if (playbackIndex === null || playbackIndex >= positions.length - 1) {
+    if (playbackIndex === null || playbackIndex >= filteredPositions.length - 1) {
       setPlaybackIndex(0);
     }
   };
@@ -134,11 +189,11 @@ export default function HistoryPage() {
 
   // Playback timer
   useEffect(() => {
-    if (isPlaying && positions.length > 0) {
+    if (isPlaying && filteredPositions.length > 0) {
       playbackRef.current = setInterval(() => {
         setPlaybackIndex(prev => {
           if (prev === null) return 0;
-          if (prev >= positions.length - 1) {
+          if (prev >= filteredPositions.length - 1) {
             stopPlayback();
             return prev;
           }
@@ -152,7 +207,7 @@ export default function HistoryPage() {
         clearInterval(playbackRef.current);
       }
     };
-  }, [isPlaying, playbackSpeed, positions.length]);
+  }, [isPlaying, playbackSpeed, filteredPositions.length]);
 
   // Handle point click on map
   const handlePointClick = (index) => {
@@ -163,14 +218,47 @@ export default function HistoryPage() {
   // Get selected device
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
 
+  // Handle time range change from timeline
+  const handleTimeRangeChange = useCallback((newRange) => {
+    setTimeRange(newRange);
+    // Reset playback when range changes
+    setPlaybackIndex(null);
+  }, []);
+
+  // Handle click on timeline to jump to position
+  const handleTimelineClick = useCallback((index) => {
+    // Find the index in filtered positions
+    if (filteredPositions.length > 0 && index < positions.length) {
+      const clickedPos = positions[index];
+      const filteredIndex = filteredPositions.findIndex(p => p.id === clickedPos.id);
+      if (filteredIndex !== -1) {
+        stopPlayback();
+        setPlaybackIndex(filteredIndex);
+      }
+    }
+  }, [positions, filteredPositions]);
+
   return (
     <Layout>
       <div className="flex h-full">
         {/* Sidebar */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
-          {/* Controls */}
-          <div className="p-4 border-b border-gray-200 space-y-4">
-            <h2 className="font-semibold text-gray-900">Track History</h2>
+        <div className={`bg-white border-r border-gray-200 flex flex-col overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'w-12' : 'w-80'}`}>
+          {/* Collapse toggle */}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-2 hover:bg-gray-100 border-b border-gray-200 flex items-center justify-center"
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <svg className={`w-5 h-5 text-gray-600 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            </svg>
+          </button>
+
+          {!sidebarCollapsed && (
+            <>
+              {/* Controls */}
+              <div className="p-4 border-b border-gray-200 space-y-4">
+                <h2 className="font-semibold text-gray-900">Track History</h2>
 
             {/* Device selector */}
             <div>
@@ -193,29 +281,36 @@ export default function HistoryPage() {
 
             {/* Date range */}
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  From
-                </label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  To
-                </label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
-                />
-              </div>
+              <DatePickerWithData
+                label="From"
+                value={startDate}
+                onChange={setStartDate}
+                datesWithData={datesWithData}
+                disabled={loadingDates}
+              />
+              <DatePickerWithData
+                label="To"
+                value={endDate}
+                onChange={setEndDate}
+                datesWithData={datesWithData}
+                disabled={loadingDates}
+              />
             </div>
+
+            {/* Dates with data indicator */}
+            {loadingDates && (
+              <div className="text-sm text-gray-500">Loading available dates...</div>
+            )}
+            {!loadingDates && datesWithData.length === 0 && selectedDeviceId && (
+              <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                No historical data found for this device.
+              </div>
+            )}
+            {!loadingDates && datesWithData.length > 0 && (
+              <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
+                {datesWithData.length} day{datesWithData.length !== 1 ? 's' : ''} with data available
+              </div>
+            )}
 
             {/* Load button */}
             <button
@@ -263,7 +358,7 @@ export default function HistoryPage() {
           )}
 
           {/* Playback controls */}
-          {positions.length > 0 && (
+          {filteredPositions.length > 0 && (
             <div className="p-4 border-b border-gray-200">
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Playback</h3>
               <div className="flex items-center gap-2 mb-2">
@@ -296,7 +391,7 @@ export default function HistoryPage() {
               </div>
               {playbackIndex !== null && (
                 <div className="mt-2 text-sm text-gray-600">
-                  Position {playbackIndex + 1} of {positions.length}
+                  Position {playbackIndex + 1} of {filteredPositions.length}
                 </div>
               )}
             </div>
@@ -304,9 +399,9 @@ export default function HistoryPage() {
 
           {/* Position list */}
           <div className="flex-1 overflow-y-auto">
-            {positions.length > 0 ? (
+            {filteredPositions.length > 0 ? (
               <div className="divide-y divide-gray-100">
-                {positions.map((pos, idx) => (
+                {filteredPositions.map((pos, idx) => (
                   <div
                     key={pos.id || idx}
                     onClick={() => handlePointClick(idx)}
@@ -331,6 +426,12 @@ export default function HistoryPage() {
                   </div>
                 ))}
               </div>
+            ) : positions.length > 0 ? (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                No positions in selected time range.
+                <br />
+                Adjust the timeline sliders above.
+              </div>
             ) : !isLoading && selectedDeviceId ? (
               <div className="p-4 text-center text-gray-500 text-sm">
                 No positions found for selected period.
@@ -339,15 +440,64 @@ export default function HistoryPage() {
               </div>
             ) : null}
           </div>
+            </>
+          )}
         </div>
 
-        {/* Map */}
-        <div className="flex-1">
-          <HistoryMap
-            positions={positions}
-            playbackIndex={playbackIndex}
-            onPointClick={handlePointClick}
-          />
+        {/* Map area with timeline */}
+        <div className="flex-1 flex flex-col">
+          {/* Timeline bar with collapse toggle */}
+          {positions.length > 0 && (
+            <div className={`bg-white border-b border-gray-200 transition-all duration-300 ${timelineCollapsed ? 'h-8' : ''}`}>
+              {/* Timeline collapse toggle */}
+              <div className="flex items-center justify-between px-2 h-8 border-b border-gray-100">
+                <span className="text-xs font-medium text-gray-600">Timeline</span>
+                <button
+                  onClick={() => setTimelineCollapsed(!timelineCollapsed)}
+                  className="p-1 hover:bg-gray-100 rounded"
+                  title={timelineCollapsed ? 'Expand timeline' : 'Collapse timeline'}
+                >
+                  <svg className={`w-4 h-4 text-gray-500 transition-transform ${timelineCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                </button>
+              </div>
+              {!timelineCollapsed && (
+                <TimelineBar
+                  positions={positions}
+                  selectedDate={startDate}
+                  onTimeRangeChange={handleTimeRangeChange}
+                  onTimeClick={handleTimelineClick}
+                  playbackIndex={playbackIndex !== null ? filteredPositions.findIndex((p, i) => i === playbackIndex) : null}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Map */}
+          <div className="flex-1 relative">
+            <HistoryMap
+              positions={filteredPositions}
+              playbackIndex={playbackIndex}
+              onPointClick={handlePointClick}
+              followTarget={followTarget}
+            />
+
+            {/* Map controls */}
+            <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-2 z-[1000] flex flex-col gap-2">
+              <button
+                onClick={() => setFollowTarget(!followTarget)}
+                className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                  followTarget
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                title={followTarget ? 'Click for free pan' : 'Click to follow target'}
+              >
+                {followTarget ? '🎯 Following' : '🗺️ Free Pan'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </Layout>

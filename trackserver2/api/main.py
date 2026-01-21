@@ -89,13 +89,28 @@ class PositionResponse(BaseModel):
     timestamp: datetime
     latitude: float
     longitude: float
-    altitude: Optional[int]
-    speed: Optional[float]
-    heading: Optional[int]
-    satellites: Optional[int]
-    hdop: Optional[float]
-    battery: Optional[int]
-    is_moving: Optional[bool]
+    altitude: Optional[int] = None
+    speed: Optional[float] = None
+    heading: Optional[int] = None
+    satellites: Optional[int] = None
+    hdop: Optional[float] = None
+    battery: Optional[int] = None
+    is_moving: Optional[bool] = None
+
+    # New optional fields
+    temperature: Optional[int] = None
+    gsm_signal: Optional[int] = None
+    mcc: Optional[int] = None
+    mnc: Optional[int] = None
+    network_type: Optional[str] = None
+    gps_valid: Optional[bool] = None
+    gps_accuracy: Optional[str] = None
+    input_state: Optional[str] = None
+    output_state: Optional[str] = None
+    message_type: Optional[str] = None
+    geozone: Optional[int] = None
+    alerts: Optional[int] = None
+    firmware_version: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -519,6 +534,29 @@ async def create_command(
     await db.commit()
     await db.refresh(new_command)
     return new_command
+
+
+# Dates with data endpoint
+@app.get("/v1/devices/{device_id}/dates-with-data")
+async def get_dates_with_data(
+    device_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get list of dates that have position data for a device."""
+    from sqlalchemy import func, cast, Date
+
+    # Query distinct dates that have positions
+    result = await db.execute(
+        select(func.date(Position.timestamp).label('date'))
+        .where(Position.device_id == device_id)
+        .group_by(func.date(Position.timestamp))
+        .order_by(func.date(Position.timestamp))
+    )
+
+    dates = [row.date.isoformat() if hasattr(row.date, 'isoformat') else str(row.date) for row in result]
+
+    return {"device_id": device_id, "dates": dates}
 
 
 # Health check

@@ -54,8 +54,30 @@ class ParsedMessage:
     alerts: int
     fw_version: str
 
+    # New fields from plan
+    mcc: int = 0
+    mnc: int = 0
+    network_type: str = ""
+    timing_advance: int = 0
+    bit_error_rate: int = 0
+    gps_accuracy: str = ""
+    input_triggered: bool = False
+    power_source: str = ""
+    external_battery_volts: float = 0.0
+    external_battery_low: bool = False
+    battery_used_mah: int = 0
+    message_type: str = "Position"
+    packet_number: int = 0
+    packet_index: int = 0
+    tamper: str = ""
+    rf_mode: str = ""
+    rf_channel: int = 0
+    df_pulse_type: str = ""
+    cinet_mode: str = ""
+    config_id: int = 0
+
     # Raw data for storage
-    raw_data: bytes
+    raw_data: bytes = b""
 
 
 class CiNetMessageParser:
@@ -192,6 +214,30 @@ class CiNetMessageParser:
         input_state = decrypted[92]
         alerts = struct.unpack('>H', decrypted[93:95])[0]
 
+        # Extract additional fields from status_flags and protocol data
+        # Bit error rate from rssi_ber field (bytes 56-60)
+        bit_error_rate = struct.unpack('>i', decrypted[56:60])[0]
+
+        # Derive GPS accuracy from HDOP value
+        if not gps_valid:
+            gps_accuracy = "No Fix"
+        elif hdop <= 1.0:
+            gps_accuracy = "High"
+        elif hdop <= 2.0:
+            gps_accuracy = "Medium"
+        elif hdop <= 5.0:
+            gps_accuracy = "Low"
+        else:
+            gps_accuracy = "Poor"
+
+        # Derive input/output state strings
+        input_state_str = "High" if input_state else "Low"
+        output_state_str = "Open" if output_state else "Closed"
+
+        # Message type based on decrypted[4]
+        message_type_map = {0: "Position", 1: "Status", 2: "GSM", 3: "Diagnostic"}
+        message_type_str = message_type_map.get(message_type, "Position")
+
         return ParsedMessage(
             device_key=device_key,
             serial_number=serial_number,
@@ -223,6 +269,12 @@ class CiNetMessageParser:
             geozone=geozone,
             alerts=alerts,
             fw_version=fw_version,
+            # New fields
+            bit_error_rate=bit_error_rate,
+            gps_accuracy=gps_accuracy,
+            input_triggered=wake_trigger == 1,
+            message_type=message_type_str,
+            packet_number=sequence,
             raw_data=bytes(data),
         )
 
