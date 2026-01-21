@@ -1,7 +1,8 @@
 import { useEffect, useRef, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, CircleMarker, Polyline, Popup, useMap } from 'react-leaflet';
+import { MapContainer, Marker, CircleMarker, Polyline, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import useDevicesStore from '../../stores/devicesStore';
+import LayerSwitcher from './LayerSwitcher';
 
 // Calculate bearing between two points (in degrees, 0 = North)
 function calculateBearing(lat1, lon1, lat2, lon2) {
@@ -189,11 +190,7 @@ export default function TrackingMap() {
         zoom={defaultZoom}
         className="h-full w-full"
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-
+        <LayerSwitcher defaultLayerId="osm" />
         <MapController selectedDeviceId={selectedDeviceId} positions={positions} />
 
         {devicesWithPositions.map((device) => (

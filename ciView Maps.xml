@@ -1,0 +1,154 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<MapProviders>
+  <MapProvider Type="TMS" Name="TMS SERVERS" Id="TMS SERVERS">
+    <SubProviders />
+  </MapProvider>
+  <MapProvider Type="Web" Name="WEB MAPS" Id="WEB MAPS">
+    <MapSources>
+      <MapSource Id="WEB MAPS/2d7bc65e-a412-4230-8fbc-1d4edc137edb">
+        <ShortName>Google Maps (Road)</ShortName>
+        <FullName>Google Maps (Road)</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>GoogleMaps</UrlType>
+        <Url>http://mt.google.com/vt/hl=en&amp;x={0}&amp;y={1}&amp;z={2}</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/6a74cecb-d689-44b5-babd-a03f940554cc">
+        <ShortName>Google Maps (Terrain)</ShortName>
+        <FullName>Google Maps (Terrain)</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>GoogleMaps</UrlType>
+        <Url>http://khm.google.co.uk/vt/lbw/lyrs=p&amp;hl=en&amp;x={0}&amp;y={1}&amp;z={2}</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/dd3e5fa9-51ed-471c-b636-20c944b99648">
+        <ShortName>Bing (Road)</ShortName>
+        <FullName>Bing (Road)</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>Bing</UrlType>
+        <Url>http://t3.tiles.virtualearth.net/tiles/r{0}.png?g=234</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/014811f1-7a3d-480c-9a5d-13ac0dd5435b">
+        <ShortName>Bing (Aerial)</ShortName>
+        <FullName>Bing (Aerial)</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>Bing</UrlType>
+        <Url>http://t3.tiles.virtualearth.net/tiles/a{0}.png?g=234</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/1d3e5c77-afeb-44bc-9474-6739edd4b093">
+        <ShortName>Bing (Hybrid)</ShortName>
+        <FullName>Bing (Hybrid)</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>Bing</UrlType>
+        <Url>http://t3.tiles.virtualearth.net/tiles/h{0}.png?g=234</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/3d7cf45b-e83f-4dbb-9f3c-eeefe7f5320e">
+        <ShortName>Google Street View</ShortName>
+        <FullName>Google Street View</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>GoogleMaps</UrlType>
+        <Url>http://cbk0.google.com/cbk?output=overlay&amp;zoom={2}&amp;x={0}&amp;y={1}</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/58efdfab-9aef-42ae-adee-e3fc167a5f36">
+        <ShortName>National Geographic</ShortName>
+        <FullName>National Geographic</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>Bing</UrlType>
+        <Url>http://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/vetile/{0}</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/6109db76-3e00-4221-97f1-7e7769b19478">
+        <ShortName>ArcGIS Shaded Relief</ShortName>
+        <FullName>ArcGIS Shaded Relief</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>GoogleMaps</UrlType>
+        <Url>http://services.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{2}/{1}/{0}.png</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/f73b0925-fafa-446e-b547-e7baac6add40">
+        <ShortName>Yahoo (Road)</ShortName>
+        <FullName>Yahoo (Road)</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>Yahoo</UrlType>
+        <Url>http://maps2.yimg.com/hx/tl?b=1&amp;v=4.3&amp;.intl=en&amp;x={0}&amp;y={1}&amp;z={2}&amp;r=1</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/256fa8b4-6276-4c97-8440-5da6e9273175">
+        <ShortName>Yahoo (Aerial)</ShortName>
+        <FullName>Yahoo (Aerial)</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>Yahoo</UrlType>
+        <Url>http://maps3.yimg.com/ae/ximg?v=1.9&amp;t=a&amp;s=256&amp;x={0}&amp;y={1}&amp;z={2}&amp;r=1</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/14671534-0316-4fe4-9b15-60121ef516ec">
+        <ShortName>ArcGIS Street Map</ShortName>
+        <FullName>ArcGIS Street Map</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>GoogleMaps</UrlType>
+        <Url>http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{2}/{1}/{0}.png</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/fc86428c-0468-416d-ab44-ae6d99189cc0">
+        <ShortName>ArcGIS Imagery</ShortName>
+        <FullName>ArcGIS Imagery</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>GoogleMaps</UrlType>
+        <Url>http://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{2}/{1}/{0}.png</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/931affff-c987-419c-b088-99c5632407f4">
+        <ShortName>ArcGIS Topo Map</ShortName>
+        <FullName>ArcGIS Topo Map</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>GoogleMaps</UrlType>
+        <Url>http://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{2}/{1}/{0}.png</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/cc9dc515-4584-4ef3-9240-607688c024a4">
+        <ShortName>USA -ArcGIS Topo Map</ShortName>
+        <FullName>USA -ArcGIS Topo Map</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>GoogleMaps</UrlType>
+        <Url>http://services.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{2}/{1}/{0}.png</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/a0cff69e-4c43-4216-aa92-c59acaec0164">
+        <ShortName>ArcGIS Light Basemap</ShortName>
+        <FullName>ArcGIS Light Basemap</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>GoogleMaps</UrlType>
+        <Url>http://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{2}/{1}/{0}.png</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+      <MapSource Id="WEB MAPS/fc0e6b67-0048-4846-92c2-89190f4fa3e5">
+        <ShortName>UK -OS from Bing</ShortName>
+        <FullName>UK -OS from Bing</FullName>
+        <SourceType>Web</SourceType>
+        <UrlType>Bing</UrlType>
+        <Url>http://ecn.t0.tiles.virtualearth.net/tiles/r{0}.png?g=1135&amp;productSet=mmOS</Url>
+        <Enabled>true</Enabled>
+        <AdditionalInfo />
+      </MapSource>
+    </MapSources>
+  </MapProvider>
+</MapProviders>

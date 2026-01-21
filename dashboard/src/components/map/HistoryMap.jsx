@@ -1,6 +1,7 @@
 import { useEffect, useRef, useMemo } from 'react';
-import { MapContainer, TileLayer, Polyline, CircleMarker, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, Polyline, CircleMarker, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import LayerSwitcher from './LayerSwitcher';
 
 // Calculate bearing between two points (in degrees, 0 = North)
 function calculateBearing(lat1, lon1, lat2, lon2) {
@@ -155,11 +156,7 @@ export default function HistoryMap({ positions, playbackIndex, onPointClick, fol
         zoom={defaultZoom}
         className="h-full w-full"
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-
+        <LayerSwitcher defaultLayerId="osm" />
         <MapBoundsController positions={positions} initialFit={true} />
         <PlaybackFollower position={playbackPosition} followTarget={followTarget} />
 
