@@ -1,54 +1,89 @@
 version: '3.8'
 
+# Trackserver2 Docker Compose Configuration
+#
+# Quick Start:
+#   docker compose up -d
+#
+# With PostgreSQL (production):
+#   docker compose --profile postgres up -d
+#
+# With pgAdmin (database management):
+#   docker compose --profile postgres --profile tools up -d
+
 services:
-  # Trackserver2 (all-in-one for development)
+  # ==========================================================================
+  # Trackserver2 - GPS Tracking Server
+  # ==========================================================================
   trackserver2:
     build: .
+    container_name: trackserver2
     ports:
-      - "4509:4509"   # ciNet protocol server
-      - "8080:8080"   # REST API + WebSocket
+      - "4509:4509"   # ciNet protocol (TCP/UDP) - for beacons
+      - "8080:8080"   # REST API + WebSocket + Dashboard
     environment:
-      - DATABASE_URL=postgresql+asyncpg://trackserver:password@db:5432/trackserver2
-      - JWT_SECRET=${JWT_SECRET:-development-secret-change-me}
+      # Database (SQLite by default, PostgreSQL with --profile postgres)
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./data/trackserver2.db}
+      # Security - CHANGE THIS IN PRODUCTION!
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+      # Server binding
       - CINET_HOST=0.0.0.0
       - CINET_PORT=4509
       - API_HOST=0.0.0.0
       - API_PORT=8080
-      - LOG_LEVEL=INFO
-    depends_on:
-      db:
-        condition: service_healthy
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Dashboard
+      - STATIC_DIR=/app/static
+    volumes:
+      # Persist database and logs
+      - trackserver_data:/app/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
-  # PostgreSQL Database
+  # ==========================================================================
+  # PostgreSQL Database (optional, use --profile postgres)
+  # ==========================================================================
   db:
     image: postgres:15-alpine
+    container_name: trackserver2-db
+    profiles:
+      - postgres
     environment:
-      - POSTGRES_USER=trackserver
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=trackserver2
+      - POSTGRES_USER=${POSTGRES_USER:-trackserver}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-trackserver}
+      - POSTGRES_DB=${POSTGRES_DB:-trackserver2}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trackserver -d trackserver2"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trackserver} -d ${POSTGRES_DB:-trackserver2}"]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
-  # Optional: pgAdmin for database management
+  # ==========================================================================
+  # pgAdmin (optional, use --profile tools)
+  # ==========================================================================
   pgadmin:
     image: dpage/pgadmin4:latest
+    container_name: trackserver2-pgadmin
+    profiles:
+      - tools
     environment:
-      - PGADMIN_DEFAULT_EMAIL=admin@local.dev
-      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@local.dev}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
     ports:
       - "5050:80"
     depends_on:
       - db
     restart: unless-stopped
-    profiles:
-      - tools
 
 volumes:
+  trackserver_data:
   postgres_data:

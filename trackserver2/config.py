@@ -37,7 +37,8 @@ class Config:
         default_factory=lambda: os.environ.get("API_HOST", "0.0.0.0")
     )
     api_port: int = field(
-        default_factory=lambda: int(os.environ.get("API_PORT", "8080"))
+        # Render sets PORT env var - check it first, then fall back to API_PORT
+        default_factory=lambda: int(os.environ.get("PORT", os.environ.get("API_PORT", "8080")))
     )
 
     # ── WebSocket Server ────────────────────────────────────────────────────────

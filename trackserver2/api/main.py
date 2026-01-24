@@ -3,11 +3,14 @@
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
@@ -236,6 +239,14 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Mount static files for dashboard (if STATIC_DIR is set)
+    static_dir = os.environ.get("STATIC_DIR")
+    if static_dir and Path(static_dir).exists():
+        # Mount static assets
+        assets_dir = Path(static_dir) / "assets"
+        if assets_dir.exists():
+            application.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
     return application
 
@@ -564,3 +575,47 @@ async def get_dates_with_data(
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "trackserver2"}
+
+
+# =============================================================================
+# Dashboard SPA Serving (must be last to not override API routes)
+# =============================================================================
+
+@app.get("/", include_in_schema=False)
+async def serve_index():
+    """Serve the dashboard index page."""
+    static_dir = os.environ.get("STATIC_DIR")
+    if not static_dir:
+        return {"message": "Trackserver2 API", "docs": "/docs"}
+
+    index_path = Path(static_dir) / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+
+    return {"message": "Trackserver2 API", "docs": "/docs"}
+
+
+@app.get("/{path:path}", include_in_schema=False)
+async def serve_spa(path: str):
+    """Serve the dashboard SPA for non-API routes."""
+    # Skip API paths
+    if path.startswith("v1/") or path.startswith("health") or path.startswith("docs") or path.startswith("openapi"):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    static_dir = os.environ.get("STATIC_DIR")
+    if not static_dir:
+        raise HTTPException(status_code=404, detail="Dashboard not configured")
+
+    static_path = Path(static_dir)
+
+    # Try to serve the exact file first
+    file_path = static_path / path
+    if file_path.is_file():
+        return FileResponse(str(file_path))
+
+    # Otherwise serve index.html for SPA routing
+    index_path = static_path / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+
+    raise HTTPException(status_code=404, detail="Not found")
