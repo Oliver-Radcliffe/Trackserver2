@@ -574,38 +574,43 @@ async def get_dates_with_data(
 @app.post("/v1/setup")
 async def setup_admin(db: AsyncSession = Depends(get_db)):
     """Create initial admin user if no users exist. One-time setup endpoint."""
-    from sqlalchemy import func
+    from sqlalchemy import func, text
 
-    # Check if any users exist
-    result = await db.execute(select(func.count(User.id)))
-    user_count = result.scalar()
+    try:
+        # Check if any users exist
+        result = await db.execute(select(func.count(User.id)))
+        user_count = result.scalar()
 
-    if user_count > 0:
-        raise HTTPException(status_code=400, detail="Setup already completed - users exist")
+        if user_count > 0:
+            raise HTTPException(status_code=400, detail="Setup already completed - users exist")
 
-    # Create default account
-    account = Account(name="Default Account")
-    db.add(account)
-    await db.flush()
+        # Create default account
+        account = Account(name="Default Account")
+        db.add(account)
+        await db.flush()
 
-    # Create admin user
-    admin_user = User(
-        email="admin@trackserver.local",
-        password_hash=get_password_hash("admin123"),
-        name="Admin",
-        role="admin",
-        enabled=True,
-        account_id=account.id
-    )
-    db.add(admin_user)
-    await db.commit()
+        # Create admin user
+        admin_user = User(
+            email="admin@trackserver.local",
+            password_hash=get_password_hash("admin123"),
+            name="Admin",
+            role="admin",
+            enabled=True,
+            account_id=account.id
+        )
+        db.add(admin_user)
+        await db.commit()
 
-    return {
-        "message": "Setup complete",
-        "admin_email": "admin@trackserver.local",
-        "admin_password": "admin123",
-        "warning": "Please change the admin password immediately!"
-    }
+        return {
+            "message": "Setup complete",
+            "admin_email": "admin@trackserver.local",
+            "admin_password": "admin123",
+            "warning": "Please change the admin password immediately!"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Setup failed: {str(e)}")
 
 
 # Health check
