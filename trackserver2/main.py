@@ -45,15 +45,18 @@ async def run_servers():
     # Seed default admin user if database is empty
     await seed_default_admin()
 
-    # Create protocol server
-    protocol_server = CiNetServer(
-        host=config.cinet_host,
-        port=config.cinet_port,
-        on_position=on_position_received
-    )
-
-    # Start protocol server
-    await protocol_server.start()
+    # Create protocol server (optional - may fail on cloud platforms)
+    protocol_server = None
+    try:
+        protocol_server = CiNetServer(
+            host=config.cinet_host,
+            port=config.cinet_port,
+            on_position=on_position_received
+        )
+        await protocol_server.start()
+    except Exception as e:
+        logger.warning(f"Could not start ciNet protocol server: {e}")
+        logger.warning("Beacon connections will not be available - only REST API/Dashboard")
 
     # Create uvicorn config for API server
     uvicorn_config = uvicorn.Config(
@@ -84,7 +87,8 @@ async def run_servers():
     # Cleanup
     logger.info("Shutting down servers...")
     api_server.should_exit = True
-    await protocol_server.stop()
+    if protocol_server:
+        await protocol_server.stop()
     await api_task
 
     logger.info("Trackserver2 stopped")

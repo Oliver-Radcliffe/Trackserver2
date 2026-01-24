@@ -55,43 +55,51 @@ async def seed_default_admin():
 
     Must be called after init_db() and after models are imported.
     """
-    from passlib.context import CryptContext
-    from sqlalchemy import select, func, text
+    import logging
+    logger = logging.getLogger(__name__)
 
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    try:
+        from passlib.context import CryptContext
+        from sqlalchemy import text
 
-    async with AsyncSessionLocal() as session:
-        # Check if any users exist using raw SQL to avoid circular import
-        result = await session.execute(text("SELECT COUNT(*) FROM users"))
-        user_count = result.scalar()
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-        if user_count == 0:
-            # Create default account
-            await session.execute(
-                text("INSERT INTO accounts (name, enabled) VALUES (:name, :enabled)"),
-                {"name": "Default Account", "enabled": True}
-            )
+        async with AsyncSessionLocal() as session:
+            # Check if any users exist using raw SQL to avoid circular import
+            result = await session.execute(text("SELECT COUNT(*) FROM users"))
+            user_count = result.scalar()
 
-            # Get the account id
-            result = await session.execute(text("SELECT id FROM accounts WHERE name = 'Default Account'"))
-            account_id = result.scalar()
+            if user_count == 0:
+                # Create default account
+                await session.execute(
+                    text("INSERT INTO accounts (name, enabled) VALUES (:name, :enabled)"),
+                    {"name": "Default Account", "enabled": True}
+                )
 
-            # Create admin user
-            password_hash = pwd_context.hash("admin123")
-            await session.execute(
-                text("""INSERT INTO users (account_id, email, password_hash, name, role, enabled)
-                        VALUES (:account_id, :email, :password_hash, :name, :role, :enabled)"""),
-                {
-                    "account_id": account_id,
-                    "email": "admin@trackserver.local",
-                    "password_hash": password_hash,
-                    "name": "Admin",
-                    "role": "admin",
-                    "enabled": True
-                }
-            )
-            await session.commit()
-            print("Created default admin user: admin@trackserver.local / admin123")
+                # Get the account id
+                result = await session.execute(text("SELECT id FROM accounts WHERE name = 'Default Account'"))
+                account_id = result.scalar()
+
+                # Create admin user
+                password_hash = pwd_context.hash("admin123")
+                await session.execute(
+                    text("""INSERT INTO users (account_id, email, password_hash, name, role, enabled)
+                            VALUES (:account_id, :email, :password_hash, :name, :role, :enabled)"""),
+                    {
+                        "account_id": account_id,
+                        "email": "admin@trackserver.local",
+                        "password_hash": password_hash,
+                        "name": "Admin",
+                        "role": "admin",
+                        "enabled": True
+                    }
+                )
+                await session.commit()
+                logger.info("Created default admin user: admin@trackserver.local / admin123")
+            else:
+                logger.info(f"Database already has {user_count} users, skipping seed")
+    except Exception as e:
+        logger.warning(f"Could not seed default admin user: {e}")
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
