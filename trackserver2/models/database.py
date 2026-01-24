@@ -49,6 +49,42 @@ async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    # Create default admin user if no users exist
+    await seed_default_admin()
+
+
+async def seed_default_admin():
+    """Create a default admin user if the database is empty."""
+    from passlib.context import CryptContext
+    from sqlalchemy import select, func
+    from .models import User, Account
+
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+    async with AsyncSessionLocal() as session:
+        # Check if any users exist
+        result = await session.execute(select(func.count(User.id)))
+        user_count = result.scalar()
+
+        if user_count == 0:
+            # Create default account
+            account = Account(name="Default Account")
+            session.add(account)
+            await session.flush()
+
+            # Create admin user
+            admin_user = User(
+                email="admin@trackserver.local",
+                password_hash=pwd_context.hash("admin123"),
+                name="Admin",
+                role="admin",
+                enabled=True,
+                account_id=account.id
+            )
+            session.add(admin_user)
+            await session.commit()
+            print("Created default admin user: admin@trackserver.local / admin123")
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency for getting database sessions."""
