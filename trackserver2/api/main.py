@@ -572,8 +572,11 @@ async def get_dates_with_data(
 
 # Setup endpoint - creates admin user if none exists
 @app.post("/v1/setup")
-async def setup_admin(db: AsyncSession = Depends(get_db)):
-    """Create initial admin user if no users exist. One-time setup endpoint."""
+async def setup_admin(db: AsyncSession = Depends(get_db), force: bool = Query(False)):
+    """Create initial admin user if no users exist. One-time setup endpoint.
+
+    Use ?force=true to reset and recreate the admin user.
+    """
     from sqlalchemy import func, text
 
     try:
@@ -581,8 +584,14 @@ async def setup_admin(db: AsyncSession = Depends(get_db)):
         result = await db.execute(select(func.count(User.id)))
         user_count = result.scalar()
 
-        if user_count > 0:
-            raise HTTPException(status_code=400, detail="Setup already completed - users exist")
+        if user_count > 0 and not force:
+            raise HTTPException(status_code=400, detail="Setup already completed - users exist. Use ?force=true to reset.")
+
+        if force:
+            # Delete existing users and accounts
+            await db.execute(text("DELETE FROM users"))
+            await db.execute(text("DELETE FROM accounts"))
+            await db.commit()
 
         # Create default account
         account = Account(name="Default Account")
