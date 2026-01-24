@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import DevicesPage from './pages/DevicesPage';
 import HistoryPage from './pages/HistoryPage';
+import SettingsPage from './pages/SettingsPage';
 
 // Protected route wrapper
 function ProtectedRoute({ children }) {
@@ -61,6 +62,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />

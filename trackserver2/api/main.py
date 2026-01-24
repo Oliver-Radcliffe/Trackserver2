@@ -58,6 +58,11 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class DeviceCreate(BaseModel):
     device_key: int
     serial_number: str
@@ -297,6 +302,19 @@ async def login(
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information."""
     return current_user
+
+
+@app.put("/v1/users/me/password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    password_data: PasswordChangeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Change the current user's password."""
+    if not verify_password(password_data.current_password, current_user.password_hash):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    current_user.password_hash = get_password_hash(password_data.new_password)
+    await db.commit()
 
 
 # Device endpoints

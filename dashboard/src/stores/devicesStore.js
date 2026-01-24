@@ -12,6 +12,11 @@ const useDevicesStore = create((set, get) => ({
   isLoading: false,
   error: null,
 
+  // User location state
+  userLocation: null, // { latitude, longitude, accuracy, timestamp }
+  userLocationError: null,
+  isGettingUserLocation: false,
+
   fetchDevices: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -111,6 +116,57 @@ const useDevicesStore = create((set, get) => ({
       ...device,
       position: state.positions[device.id],
     }));
+  },
+
+  requestUserLocation: () => {
+    if (!navigator.geolocation) {
+      set({ userLocationError: 'Geolocation is not supported by your browser' });
+      return;
+    }
+
+    set({ isGettingUserLocation: true, userLocationError: null });
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        set({
+          userLocation: {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: position.timestamp,
+          },
+          isGettingUserLocation: false,
+          userLocationError: null,
+        });
+      },
+      (error) => {
+        let errorMessage = 'Failed to get location';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Location permission denied';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Location unavailable';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Location request timed out';
+            break;
+        }
+        set({
+          userLocationError: errorMessage,
+          isGettingUserLocation: false,
+        });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  },
+
+  clearUserLocation: () => {
+    set({ userLocation: null, userLocationError: null });
   },
 }));
 

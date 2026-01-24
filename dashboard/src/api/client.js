@@ -48,6 +48,13 @@ export const authApi = {
     const response = await api.get('/users/me');
     return response.data;
   },
+
+  changePassword: async (currentPassword, newPassword) => {
+    await api.put('/users/me/password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  },
 };
 
 // Devices API

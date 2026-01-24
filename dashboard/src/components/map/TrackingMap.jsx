@@ -3,6 +3,7 @@ import { MapContainer, Marker, CircleMarker, Polyline, Popup, useMap } from 'rea
 import L from 'leaflet';
 import useDevicesStore from '../../stores/devicesStore';
 import LayerSwitcher from './LayerSwitcher';
+import UserLocationMarker from './UserLocationMarker';
 
 // Calculate bearing between two points (in degrees, 0 = North)
 function calculateBearing(lat1, lon1, lat2, lon2) {
@@ -171,8 +172,33 @@ function DeviceMarker({ device, position, trail, isSelected, onSelect }) {
   );
 }
 
+// Component to fly to user location
+function FlyToUserLocation({ userLocation }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (userLocation) {
+      map.flyTo([userLocation.latitude, userLocation.longitude], 15, { duration: 1 });
+    }
+  }, [userLocation, map]);
+
+  return null;
+}
+
 export default function TrackingMap() {
-  const { devices, positions, positionTrails, selectedDeviceId, selectDevice, getAllDevicesWithPositions } = useDevicesStore();
+  const {
+    devices,
+    positions,
+    positionTrails,
+    selectedDeviceId,
+    selectDevice,
+    getAllDevicesWithPositions,
+    userLocation,
+    userLocationError,
+    isGettingUserLocation,
+    requestUserLocation,
+    clearUserLocation,
+  } = useDevicesStore();
   const mapRef = useRef(null);
 
   // Default center (London)
@@ -192,6 +218,7 @@ export default function TrackingMap() {
       >
         <LayerSwitcher defaultLayerId="osm" />
         <MapController selectedDeviceId={selectedDeviceId} positions={positions} />
+        <FlyToUserLocation userLocation={userLocation} />
 
         {devicesWithPositions.map((device) => (
           <DeviceMarker
@@ -203,7 +230,45 @@ export default function TrackingMap() {
             onSelect={selectDevice}
           />
         ))}
+
+        <UserLocationMarker location={userLocation} />
       </MapContainer>
+
+      {/* My Location button */}
+      <div className="absolute top-4 right-4 z-[1000]">
+        <button
+          onClick={requestUserLocation}
+          disabled={isGettingUserLocation}
+          className="bg-white rounded-lg shadow-lg p-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          title="My Location"
+        >
+          {isGettingUserLocation ? (
+            <svg className="w-6 h-6 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            <svg className="w-6 h-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <circle cx="12" cy="12" r="3" fill="currentColor" />
+              <path strokeLinecap="round" d="M12 2v2m0 16v2m10-10h-2M4 12H2" />
+            </svg>
+          )}
+        </button>
+      </div>
+
+      {/* User location error message */}
+      {userLocationError && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg shadow-lg">
+          {userLocationError}
+          <button
+            onClick={clearUserLocation}
+            className="ml-2 text-red-900 font-bold hover:text-red-700"
+          >
+            &times;
+          </button>
+        </div>
+      )}
 
       {/* Map legend */}
       <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
@@ -230,6 +295,12 @@ export default function TrackingMap() {
           <div className="flex items-center gap-2 pt-1 border-t border-gray-200 mt-1">
             <span className="w-4 border-t-2 border-dashed border-gray-400"></span>
             <span className="text-xs text-gray-500">Trail (last 10)</span>
+          </div>
+          <div className="flex items-center gap-2 pt-1 border-t border-gray-200 mt-1">
+            <svg width="16" height="16" viewBox="0 0 16 16">
+              <circle cx="8" cy="8" r="5" fill="#2563eb" stroke="#fff" strokeWidth="2"/>
+            </svg>
+            <span>Your Location</span>
           </div>
         </div>
       </div>

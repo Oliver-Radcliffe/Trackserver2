@@ -15,6 +15,7 @@ export default function Layout({ children }) {
     { path: '/', label: 'Live Tracking', icon: '📍' },
     { path: '/devices', label: 'Devices', icon: '📱' },
     { path: '/history', label: 'History', icon: '📊' },
+    { path: '/settings', label: 'Settings', icon: '⚙️' },
   ];
 
   return (
