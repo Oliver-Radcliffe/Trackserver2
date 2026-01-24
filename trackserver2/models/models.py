@@ -1,6 +1,6 @@
 """SQLAlchemy models for Trackserver2."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
@@ -19,7 +19,7 @@ class Account(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     enabled = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
 
     # Relationships
     devices = relationship("Device", back_populates="account")
@@ -39,7 +39,7 @@ class Device(Base):
     device_type = Column(String(20), default="Millitag")
     enabled = Column(Boolean, default=True)
     last_seen_at = Column(DateTime)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
 
     # Relationships
     account = relationship("Account", back_populates="devices")
@@ -68,7 +68,7 @@ class Position(Base):
     status_flags = Column(Integer)
     is_moving = Column(Boolean)
     raw_data = Column(LargeBinary)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
 
     # Additional fields from ciNet protocol
     temperature = Column(Integer)
@@ -139,7 +139,7 @@ class User(Base):
     role = Column(String(20), default="user")  # admin, user, viewer
     enabled = Column(Boolean, default=True)
     last_login_at = Column(DateTime)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
 
     # Relationships
     account = relationship("Account", back_populates="users")
@@ -158,7 +158,7 @@ class Geofence(Base):
     alert_on_enter = Column(Boolean, default=True)
     alert_on_exit = Column(Boolean, default=True)
     enabled = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
 
     # Relationships
     device = relationship("Device", back_populates="geofences")
@@ -173,7 +173,7 @@ class Command(Base):
     command_type = Column(String(50), nullable=False)
     command_data = Column(JSON)
     status = Column(String(20), default="pending")  # pending, sent, acknowledged, failed
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
     sent_at = Column(DateTime)
     acknowledged_at = Column(DateTime)
     error_message = Column(Text)
@@ -196,7 +196,7 @@ class Alert(Base):
     message = Column(Text)
     position_id = Column(Integer, ForeignKey("positions.id"))
     acknowledged = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
 
     # Relationships
     device = relationship("Device", back_populates="alerts")
