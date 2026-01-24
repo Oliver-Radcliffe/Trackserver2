@@ -11,7 +11,7 @@ from fastapi import WebSocket
 
 from .api.main import app
 from .config import config
-from .models.database import init_db
+from .models.database import init_db, seed_default_admin
 from .protocol.server import CiNetServer
 from .protocol.message_parser import ParsedMessage
 from .websocket.server import websocket_manager, websocket_endpoint
@@ -41,6 +41,9 @@ async def run_servers():
     # Initialize database
     await init_db()
     logger.info("Database initialized")
+
+    # Seed default admin user if database is empty
+    await seed_default_admin()
 
     # Create protocol server
     protocol_server = CiNetServer(

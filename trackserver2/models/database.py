@@ -49,39 +49,47 @@ async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Create default admin user if no users exist
-    await seed_default_admin()
-
 
 async def seed_default_admin():
-    """Create a default admin user if the database is empty."""
+    """Create a default admin user if the database is empty.
+
+    Must be called after init_db() and after models are imported.
+    """
     from passlib.context import CryptContext
-    from sqlalchemy import select, func
-    from .models import User, Account
+    from sqlalchemy import select, func, text
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
     async with AsyncSessionLocal() as session:
-        # Check if any users exist
-        result = await session.execute(select(func.count(User.id)))
+        # Check if any users exist using raw SQL to avoid circular import
+        result = await session.execute(text("SELECT COUNT(*) FROM users"))
         user_count = result.scalar()
 
         if user_count == 0:
             # Create default account
-            account = Account(name="Default Account")
-            session.add(account)
-            await session.flush()
+            await session.execute(
+                text("INSERT INTO accounts (name, enabled) VALUES (:name, :enabled)"),
+                {"name": "Default Account", "enabled": True}
+            )
+
+            # Get the account id
+            result = await session.execute(text("SELECT id FROM accounts WHERE name = 'Default Account'"))
+            account_id = result.scalar()
 
             # Create admin user
-            admin_user = User(
-                email="admin@trackserver.local",
-                password_hash=pwd_context.hash("admin123"),
-                name="Admin",
-                role="admin",
-                enabled=True,
-                account_id=account.id
+            password_hash = pwd_context.hash("admin123")
+            await session.execute(
+                text("""INSERT INTO users (account_id, email, password_hash, name, role, enabled)
+                        VALUES (:account_id, :email, :password_hash, :name, :role, :enabled)"""),
+                {
+                    "account_id": account_id,
+                    "email": "admin@trackserver.local",
+                    "password_hash": password_hash,
+                    "name": "Admin",
+                    "role": "admin",
+                    "enabled": True
+                }
             )
-            session.add(admin_user)
             await session.commit()
             print("Created default admin user: admin@trackserver.local / admin123")
 
