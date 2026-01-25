@@ -83,7 +83,12 @@ function MapController({ mapMode, positions, userLocation, otherUserLocations, s
           if (selectedTargetType === 'device') {
             pos = positions[selectedTargetId];
           } else if (selectedTargetType === 'user') {
-            pos = otherUserLocations[selectedTargetId];
+            // Handle 'me' as a special case
+            if (selectedTargetId === 'me') {
+              pos = userLocation;
+            } else {
+              pos = otherUserLocations[selectedTargetId];
+            }
           }
           if (pos) {
             map.flyTo([pos.latitude, pos.longitude], 15, { duration: 1 });
@@ -135,13 +140,17 @@ function MapController({ mapMode, positions, userLocation, otherUserLocations, s
       if (selectedTargetType === 'device') {
         pos = positions[selectedTargetId];
       } else if (selectedTargetType === 'user') {
-        pos = otherUserLocations[selectedTargetId];
+        if (selectedTargetId === 'me') {
+          pos = userLocation;
+        } else {
+          pos = otherUserLocations[selectedTargetId];
+        }
       }
       if (pos) {
         map.panTo([pos.latitude, pos.longitude], { animate: true });
       }
     }
-  }, [positions, otherUserLocations]);
+  }, [positions, otherUserLocations, userLocation]);
 
   return null;
 }
@@ -377,16 +386,30 @@ export default function TrackingMap() {
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[1000]">
         <div className="flex items-end gap-2">
           <MapControls />
-          {/* Share location button */}
+          {/* Share location toggle button */}
           <button
-            onClick={requestUserLocation}
-            className="bg-white rounded-lg shadow-lg p-2 lg:p-3 hover:bg-gray-100 transition-colors flex items-center gap-2"
-            title="Share My Location"
+            onClick={userLocation ? clearUserLocation : requestUserLocation}
+            className={`rounded-lg shadow-lg p-2 lg:p-3 transition-colors flex items-center gap-2 ${
+              userLocation
+                ? 'bg-green-500 hover:bg-green-600 text-white'
+                : 'bg-white hover:bg-gray-100'
+            }`}
+            title={userLocation ? "Stop Sharing Location" : "Share My Location"}
           >
-            <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-            </svg>
-            <span className="hidden lg:inline text-sm font-medium text-gray-700">Share</span>
+            {userLocation ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            )}
+            <span className="hidden lg:inline text-sm font-medium">
+              {userLocation ? 'Sharing' : 'Share'}
+            </span>
           </button>
         </div>
       </div>

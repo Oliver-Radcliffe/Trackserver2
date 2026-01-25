@@ -142,9 +142,9 @@ export default function MapControls() {
           </svg>
         </button>
 
-        {/* Mode dropdown */}
+        {/* Mode dropdown - opens upward */}
         {dropdownOpen && (
-          <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[180px] z-[1001]">
+          <div className="absolute bottom-full left-0 mb-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[180px] z-[1001]">
             <button
               onClick={() => handleModeSelect(MAP_MODES.MY_LOCATION)}
               className={`w-full px-4 py-2 text-left text-sm flex items-center gap-3 hover:bg-gray-100 ${
@@ -218,9 +218,9 @@ export default function MapControls() {
             </svg>
           </button>
 
-          {/* Target dropdown */}
+          {/* Target dropdown - opens upward */}
           {targetDropdownOpen && (
-            <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-full max-h-60 overflow-y-auto z-[1001]">
+            <div className="absolute bottom-full left-0 mb-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-full max-h-60 overflow-y-auto z-[1001]">
               {targets.length === 0 ? (
                 <div className="px-4 py-2 text-sm text-gray-500">No targets available</div>
               ) : (

@@ -269,7 +269,7 @@ const useDevicesStore = create((set, get) => ({
     set({ mapMode: MAP_MODES.FREE_PAN, selectedTargetId: null, selectedTargetType: null });
   },
 
-  // Get all targets (devices + shared user locations) for selection
+  // Get all targets (devices + shared user locations + my location) for selection
   getAllTargets: () => {
     const state = get();
     const targets = [];
@@ -291,7 +291,21 @@ const useDevicesStore = create((set, get) => ({
       }
     });
 
-    // Add shared user locations
+    // Add my own shared location
+    if (state.userLocation) {
+      targets.push({
+        id: 'user_me',
+        type: 'user',
+        name: 'My Location',
+        latitude: state.userLocation.latitude,
+        longitude: state.userLocation.longitude,
+        isMoving: false,
+        isOnline: true,
+        originalId: 'me',
+      });
+    }
+
+    // Add other users' shared locations
     Object.values(state.otherUserLocations).forEach((userLoc) => {
       targets.push({
         id: `user_${userLoc.user_id}`,
@@ -317,6 +331,10 @@ const useDevicesStore = create((set, get) => ({
       const position = state.positions[state.selectedTargetId];
       return position ? { latitude: position.latitude, longitude: position.longitude } : null;
     } else if (state.selectedTargetType === 'user') {
+      // Handle 'me' as a special case
+      if (state.selectedTargetId === 'me') {
+        return state.userLocation ? { latitude: state.userLocation.latitude, longitude: state.userLocation.longitude } : null;
+      }
       const userLoc = state.otherUserLocations[state.selectedTargetId];
       return userLoc ? { latitude: userLoc.latitude, longitude: userLoc.longitude } : null;
     }
