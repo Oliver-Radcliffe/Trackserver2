@@ -63,8 +63,15 @@ function DeviceCard({ device, position, isSelected, onSelect }) {
   );
 }
 
-export default function DeviceList() {
+export default function DeviceList({ onDeviceClick }) {
   const { devices, positions, selectedDeviceId, selectDevice, isLoading } = useDevicesStore();
+
+  const handleDeviceSelect = (deviceId) => {
+    selectDevice(deviceId);
+    if (onDeviceClick) {
+      onDeviceClick();
+    }
+  };
 
   if (isLoading) {
     return (
@@ -90,7 +97,7 @@ export default function DeviceList() {
           device={device}
           position={positions[device.id]}
           isSelected={selectedDeviceId === device.id}
-          onSelect={selectDevice}
+          onSelect={handleDeviceSelect}
         />
       ))}
     </div>

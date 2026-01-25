@@ -1,9 +1,10 @@
 import { useEffect, useRef, useMemo, useState } from 'react';
 import { MapContainer, Marker, CircleMarker, Circle, Polyline, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import useDevicesStore from '../../stores/devicesStore';
+import useDevicesStore, { MAP_MODES } from '../../stores/devicesStore';
 import LayerSwitcher from './LayerSwitcher';
 import UserLocationMarker from './UserLocationMarker';
+import MapControls from './MapControls';
 
 // Calculate bearing between two points (in degrees, 0 = North)
 function calculateBearing(lat1, lon1, lat2, lon2) {
@@ -56,16 +57,91 @@ function getStatusColor(device, position) {
   return '#3b82f6'; // blue - stationary
 }
 
-// Component to handle map centering
-function MapController({ selectedDeviceId, positions }) {
+// Component to handle map centering based on map mode
+function MapController({ mapMode, positions, userLocation, otherUserLocations, selectedTargetId, selectedTargetType, getAllTargets }) {
   const map = useMap();
+  const prevModeRef = useRef(mapMode);
+  const prevTargetRef = useRef({ id: selectedTargetId, type: selectedTargetType });
 
   useEffect(() => {
-    if (selectedDeviceId && positions[selectedDeviceId]) {
-      const pos = positions[selectedDeviceId];
-      map.flyTo([pos.latitude, pos.longitude], 15, { duration: 1 });
+    const modeChanged = prevModeRef.current !== mapMode;
+    const targetChanged = prevTargetRef.current.id !== selectedTargetId || prevTargetRef.current.type !== selectedTargetType;
+
+    prevModeRef.current = mapMode;
+    prevTargetRef.current = { id: selectedTargetId, type: selectedTargetType };
+
+    switch (mapMode) {
+      case MAP_MODES.MY_LOCATION:
+        if (userLocation) {
+          map.flyTo([userLocation.latitude, userLocation.longitude], 15, { duration: 1 });
+        }
+        break;
+
+      case MAP_MODES.TARGET:
+        if (selectedTargetId && selectedTargetType) {
+          let pos = null;
+          if (selectedTargetType === 'device') {
+            pos = positions[selectedTargetId];
+          } else if (selectedTargetType === 'user') {
+            pos = otherUserLocations[selectedTargetId];
+          }
+          if (pos) {
+            map.flyTo([pos.latitude, pos.longitude], 15, { duration: 1 });
+          }
+        }
+        break;
+
+      case MAP_MODES.ALL_TARGETS:
+        const allTargets = getAllTargets();
+        if (allTargets.length > 0) {
+          const bounds = L.latLngBounds(
+            allTargets.map((t) => [t.latitude, t.longitude])
+          );
+          // Add user location to bounds if available
+          if (userLocation) {
+            bounds.extend([userLocation.latitude, userLocation.longitude]);
+          }
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15, duration: 1 });
+        }
+        break;
+
+      case MAP_MODES.FREE_PAN:
+      default:
+        // Do nothing - user controls the map
+        break;
     }
-  }, [selectedDeviceId, positions, map]);
+  }, [mapMode, positions, userLocation, otherUserLocations, selectedTargetId, selectedTargetType, getAllTargets, map]);
+
+  // For ALL_TARGETS mode, update bounds when positions change
+  useEffect(() => {
+    if (mapMode === MAP_MODES.ALL_TARGETS) {
+      const allTargets = getAllTargets();
+      if (allTargets.length > 0) {
+        const bounds = L.latLngBounds(
+          allTargets.map((t) => [t.latitude, t.longitude])
+        );
+        if (userLocation) {
+          bounds.extend([userLocation.latitude, userLocation.longitude]);
+        }
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15, animate: true });
+      }
+    }
+  }, [positions, otherUserLocations]);
+
+  // For TARGET mode, follow the selected target when its position updates
+  useEffect(() => {
+    if (mapMode === MAP_MODES.TARGET && selectedTargetId && selectedTargetType) {
+      let pos = null;
+      if (selectedTargetType === 'device') {
+        pos = positions[selectedTargetId];
+      } else if (selectedTargetType === 'user') {
+        pos = otherUserLocations[selectedTargetId];
+      }
+      if (pos) {
+        map.panTo([pos.latitude, pos.longitude], { animate: true });
+      }
+    }
+  }, [positions, otherUserLocations]);
 
   return null;
 }
@@ -172,18 +248,6 @@ function DeviceMarker({ device, position, trail, isSelected, onSelect }) {
   );
 }
 
-// Component to fly to user location
-function FlyToUserLocation({ userLocation }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (userLocation) {
-      map.flyTo([userLocation.latitude, userLocation.longitude], 15, { duration: 1 });
-    }
-  }, [userLocation, map]);
-
-  return null;
-}
 
 // Marker for other users' shared locations
 function OtherUserMarker({ userLoc }) {
@@ -247,11 +311,14 @@ export default function TrackingMap() {
     getAllDevicesWithPositions,
     userLocation,
     userLocationError,
-    isGettingUserLocation,
-    requestUserLocation,
     clearUserLocation,
     otherUserLocations,
     fetchUserLocations,
+    mapMode,
+    selectedTargetId,
+    selectedTargetType,
+    getAllTargets,
+    requestUserLocation,
   } = useDevicesStore();
   const mapRef = useRef(null);
   const [legendOpen, setLegendOpen] = useState(false);
@@ -277,8 +344,15 @@ export default function TrackingMap() {
         className="h-full w-full"
       >
         <LayerSwitcher defaultLayerId="osm" />
-        <MapController selectedDeviceId={selectedDeviceId} positions={positions} />
-        <FlyToUserLocation userLocation={userLocation} />
+        <MapController
+          mapMode={mapMode}
+          positions={positions}
+          userLocation={userLocation}
+          otherUserLocations={otherUserLocations}
+          selectedTargetId={selectedTargetId}
+          selectedTargetType={selectedTargetType}
+          getAllTargets={getAllTargets}
+        />
 
         {devicesWithPositions.map((device) => (
           <DeviceMarker
@@ -299,27 +373,22 @@ export default function TrackingMap() {
         ))}
       </MapContainer>
 
-      {/* My Location button - bottom center */}
+      {/* Map controls - bottom center */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[1000]">
-        <button
-          onClick={requestUserLocation}
-          disabled={isGettingUserLocation}
-          className="bg-white rounded-full lg:rounded-lg shadow-lg p-3 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          title="Share My Location"
-        >
-          {isGettingUserLocation ? (
-            <svg className="w-6 h-6 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        <div className="flex items-end gap-2">
+          <MapControls />
+          {/* Share location button */}
+          <button
+            onClick={requestUserLocation}
+            className="bg-white rounded-lg shadow-lg p-2 lg:p-3 hover:bg-gray-100 transition-colors flex items-center gap-2"
+            title="Share My Location"
+          >
+            <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
-          ) : (
-            <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="3" fill="currentColor" />
-              <path strokeLinecap="round" d="M12 2v3m0 14v3m10-10h-3M5 12H2" />
-            </svg>
-          )}
-          <span className="hidden lg:inline text-sm font-medium text-gray-700">Share My Location</span>
-        </button>
+            <span className="hidden lg:inline text-sm font-medium text-gray-700">Share</span>
+          </button>
+        </div>
       </div>
 
       {/* User location error message */}

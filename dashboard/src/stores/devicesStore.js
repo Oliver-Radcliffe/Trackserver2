@@ -4,6 +4,14 @@ import wsClient from '../api/websocket';
 
 const MAX_TRAIL_LENGTH = 10;
 
+// Map control modes
+const MAP_MODES = {
+  FREE_PAN: 'free_pan',
+  MY_LOCATION: 'my_location',
+  TARGET: 'target',
+  ALL_TARGETS: 'all_targets',
+};
+
 const useDevicesStore = create((set, get) => ({
   devices: [],
   positions: {}, // Map of deviceId -> latest position
@@ -17,6 +25,11 @@ const useDevicesStore = create((set, get) => ({
   userLocationError: null,
   isGettingUserLocation: false,
   otherUserLocations: {}, // Map of userId -> { user_id, user_name, user_email, latitude, longitude, accuracy, timestamp }
+
+  // Map control state
+  mapMode: MAP_MODES.FREE_PAN, // Current map control mode
+  selectedTargetId: null, // ID of selected target (device_xxx or user_xxx)
+  selectedTargetType: null, // 'device' or 'user'
 
   fetchDevices: async () => {
     set({ isLoading: true, error: null });
@@ -58,7 +71,12 @@ const useDevicesStore = create((set, get) => ({
   },
 
   selectDevice: (deviceId) => {
-    set({ selectedDeviceId: deviceId });
+    set({
+      selectedDeviceId: deviceId,
+      selectedTargetId: deviceId,
+      selectedTargetType: 'device',
+      mapMode: MAP_MODES.TARGET,
+    });
   },
 
   updatePosition: (deviceId, positionData) => {
@@ -218,6 +236,94 @@ const useDevicesStore = create((set, get) => ({
   clearUserLocation: () => {
     set({ userLocation: null, userLocationError: null });
   },
+
+  // Map control functions
+  setMapMode: (mode) => {
+    set({ mapMode: mode });
+  },
+
+  setSelectedTarget: (targetId, targetType) => {
+    set({
+      selectedTargetId: targetId,
+      selectedTargetType: targetType,
+      mapMode: targetId ? MAP_MODES.TARGET : MAP_MODES.FREE_PAN,
+    });
+  },
+
+  centerOnMyLocation: () => {
+    const state = get();
+    if (state.userLocation) {
+      set({ mapMode: MAP_MODES.MY_LOCATION });
+    } else {
+      // Request location first, then set mode
+      state.requestUserLocation();
+      set({ mapMode: MAP_MODES.MY_LOCATION });
+    }
+  },
+
+  centerOnAllTargets: () => {
+    set({ mapMode: MAP_MODES.ALL_TARGETS });
+  },
+
+  setFreePan: () => {
+    set({ mapMode: MAP_MODES.FREE_PAN, selectedTargetId: null, selectedTargetType: null });
+  },
+
+  // Get all targets (devices + shared user locations) for selection
+  getAllTargets: () => {
+    const state = get();
+    const targets = [];
+
+    // Add devices with positions
+    state.devices.forEach((device) => {
+      const position = state.positions[device.id];
+      if (position) {
+        targets.push({
+          id: `device_${device.id}`,
+          type: 'device',
+          name: device.name || device.serial_number,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          isMoving: position.is_moving,
+          isOnline: device.last_seen_at && (new Date() - new Date(device.last_seen_at)) < 5 * 60 * 1000,
+          originalId: device.id,
+        });
+      }
+    });
+
+    // Add shared user locations
+    Object.values(state.otherUserLocations).forEach((userLoc) => {
+      targets.push({
+        id: `user_${userLoc.user_id}`,
+        type: 'user',
+        name: userLoc.user_name || userLoc.user_email || 'User',
+        latitude: userLoc.latitude,
+        longitude: userLoc.longitude,
+        isMoving: false,
+        isOnline: true,
+        originalId: userLoc.user_id,
+      });
+    });
+
+    return targets;
+  },
+
+  // Get the currently selected target position
+  getSelectedTargetPosition: () => {
+    const state = get();
+    if (!state.selectedTargetId || !state.selectedTargetType) return null;
+
+    if (state.selectedTargetType === 'device') {
+      const position = state.positions[state.selectedTargetId];
+      return position ? { latitude: position.latitude, longitude: position.longitude } : null;
+    } else if (state.selectedTargetType === 'user') {
+      const userLoc = state.otherUserLocations[state.selectedTargetId];
+      return userLoc ? { latitude: userLoc.latitude, longitude: userLoc.longitude } : null;
+    }
+    return null;
+  },
 }));
+
+export { MAP_MODES };
 
 export default useDevicesStore;
