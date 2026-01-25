@@ -18,7 +18,8 @@ from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.database import get_db, init_db
-from ..models.models import Account, Device, Position, User, Geofence, Command
+from ..models.models import Account, Device, Position, User, Geofence, Command, UserLocation
+from ..websocket.server import websocket_manager
 
 # JWT Configuration
 SECRET_KEY = os.environ.get("JWT_SECRET", "development-secret-key-change-in-production")
@@ -61,6 +62,27 @@ class UserResponse(BaseModel):
 class PasswordChangeRequest(BaseModel):
     current_password: str
     new_password: str
+
+
+class UserLocationCreate(BaseModel):
+    latitude: float
+    longitude: float
+    accuracy: Optional[float] = None
+    timestamp: datetime
+
+
+class UserLocationResponse(BaseModel):
+    id: int
+    user_id: int
+    user_name: Optional[str]
+    user_email: str
+    latitude: float
+    longitude: float
+    accuracy: Optional[float]
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class DeviceCreate(BaseModel):
@@ -315,6 +337,96 @@ async def change_password(
         raise HTTPException(status_code=401, detail="Current password is incorrect")
     current_user.password_hash = get_password_hash(password_data.new_password)
     await db.commit()
+
+
+# User location endpoints
+@app.post("/v1/users/me/location", response_model=UserLocationResponse)
+async def share_user_location(
+    location: UserLocationCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Share current user's location."""
+    user_location = UserLocation(
+        user_id=current_user.id,
+        latitude=location.latitude,
+        longitude=location.longitude,
+        accuracy=location.accuracy,
+        timestamp=location.timestamp,
+    )
+    db.add(user_location)
+    await db.commit()
+    await db.refresh(user_location)
+
+    # Broadcast to all connected clients
+    await websocket_manager.broadcast_user_location(
+        user_id=current_user.id,
+        user_name=current_user.name,
+        user_email=current_user.email,
+        latitude=location.latitude,
+        longitude=location.longitude,
+        accuracy=location.accuracy,
+        timestamp=location.timestamp,
+    )
+
+    return UserLocationResponse(
+        id=user_location.id,
+        user_id=current_user.id,
+        user_name=current_user.name,
+        user_email=current_user.email,
+        latitude=location.latitude,
+        longitude=location.longitude,
+        accuracy=location.accuracy,
+        timestamp=location.timestamp,
+    )
+
+
+@app.get("/v1/users/locations", response_model=list[UserLocationResponse])
+async def get_user_locations(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get latest location for all users (within last 24 hours)."""
+    from sqlalchemy import func
+    from sqlalchemy.orm import joinedload
+
+    # Subquery to get the latest location per user
+    subquery = (
+        select(
+            UserLocation.user_id,
+            func.max(UserLocation.timestamp).label('max_timestamp')
+        )
+        .where(UserLocation.timestamp >= datetime.utcnow() - timedelta(hours=24))
+        .group_by(UserLocation.user_id)
+        .subquery()
+    )
+
+    # Join to get full location records with user info
+    result = await db.execute(
+        select(UserLocation, User)
+        .join(User, UserLocation.user_id == User.id)
+        .join(
+            subquery,
+            (UserLocation.user_id == subquery.c.user_id) &
+            (UserLocation.timestamp == subquery.c.max_timestamp)
+        )
+    )
+
+    locations = []
+    for row in result:
+        loc, user = row
+        locations.append(UserLocationResponse(
+            id=loc.id,
+            user_id=loc.user_id,
+            user_name=user.name,
+            user_email=user.email,
+            latitude=loc.latitude,
+            longitude=loc.longitude,
+            accuracy=loc.accuracy,
+            timestamp=loc.timestamp,
+        ))
+
+    return locations
 
 
 # Device endpoints

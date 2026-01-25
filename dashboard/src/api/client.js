@@ -55,6 +55,21 @@ export const authApi = {
       new_password: newPassword,
     });
   },
+
+  shareLocation: async (latitude, longitude, accuracy) => {
+    const response = await api.post('/users/me/location', {
+      latitude,
+      longitude,
+      accuracy,
+      timestamp: new Date().toISOString(),
+    });
+    return response.data;
+  },
+
+  getUserLocations: async () => {
+    const response = await api.get('/users/locations');
+    return response.data;
+  },
 };
 
 // Devices API

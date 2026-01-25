@@ -1,5 +1,5 @@
 import { useEffect, useRef, useMemo } from 'react';
-import { MapContainer, Marker, CircleMarker, Polyline, Popup, useMap } from 'react-leaflet';
+import { MapContainer, Marker, CircleMarker, Circle, Polyline, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import useDevicesStore from '../../stores/devicesStore';
 import LayerSwitcher from './LayerSwitcher';
@@ -185,6 +185,58 @@ function FlyToUserLocation({ userLocation }) {
   return null;
 }
 
+// Marker for other users' shared locations
+function OtherUserMarker({ userLoc }) {
+  if (!userLoc) return null;
+
+  const { latitude, longitude, accuracy, user_name, user_email, timestamp } = userLoc;
+
+  return (
+    <>
+      {/* Accuracy circle */}
+      {accuracy && (
+        <Circle
+          center={[latitude, longitude]}
+          radius={accuracy}
+          pathOptions={{
+            color: '#16a34a',
+            fillColor: '#22c55e',
+            fillOpacity: 0.15,
+            weight: 1,
+          }}
+        />
+      )}
+
+      {/* User position marker (green dot) */}
+      <CircleMarker
+        center={[latitude, longitude]}
+        radius={8}
+        pathOptions={{
+          color: '#ffffff',
+          fillColor: '#16a34a',
+          fillOpacity: 1,
+          weight: 3,
+        }}
+      >
+        <Popup>
+          <div className="min-w-40">
+            <h3 className="font-bold text-lg">{user_name || 'User'}</h3>
+            <p className="text-sm text-gray-600">{user_email}</p>
+            <div className="mt-2 space-y-1 text-sm">
+              <p><strong>Latitude:</strong> {latitude.toFixed(6)}</p>
+              <p><strong>Longitude:</strong> {longitude.toFixed(6)}</p>
+              {accuracy && <p><strong>Accuracy:</strong> {accuracy.toFixed(0)} m</p>}
+              <p className="text-xs text-gray-500">
+                Updated: {new Date(timestamp).toLocaleTimeString()}
+              </p>
+            </div>
+          </div>
+        </Popup>
+      </CircleMarker>
+    </>
+  );
+}
+
 export default function TrackingMap() {
   const {
     devices,
@@ -198,8 +250,15 @@ export default function TrackingMap() {
     isGettingUserLocation,
     requestUserLocation,
     clearUserLocation,
+    otherUserLocations,
+    fetchUserLocations,
   } = useDevicesStore();
   const mapRef = useRef(null);
+
+  // Fetch other users' locations on mount
+  useEffect(() => {
+    fetchUserLocations();
+  }, []);
 
   // Default center (London)
   const defaultCenter = [51.505, -0.09];
@@ -232,6 +291,11 @@ export default function TrackingMap() {
         ))}
 
         <UserLocationMarker location={userLocation} />
+
+        {/* Other users' locations */}
+        {Object.values(otherUserLocations).map((userLoc) => (
+          <OtherUserMarker key={userLoc.user_id} userLoc={userLoc} />
+        ))}
       </MapContainer>
 
       {/* My Location button */}
@@ -301,6 +365,12 @@ export default function TrackingMap() {
               <circle cx="8" cy="8" r="5" fill="#2563eb" stroke="#fff" strokeWidth="2"/>
             </svg>
             <span>Your Location</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 16 16">
+              <circle cx="8" cy="8" r="5" fill="#16a34a" stroke="#fff" strokeWidth="2"/>
+            </svg>
+            <span>Other Users</span>
           </div>
         </div>
       </div>

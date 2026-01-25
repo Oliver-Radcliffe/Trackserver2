@@ -167,6 +167,47 @@ class WebSocketManager:
         for websocket in disconnected:
             await self.disconnect(websocket)
 
+    async def broadcast_user_location(
+        self,
+        user_id: int,
+        user_name: str,
+        user_email: str,
+        latitude: float,
+        longitude: float,
+        accuracy: float,
+        timestamp,
+    ):
+        """Broadcast user location update to all connected clients."""
+        async with self._lock:
+            all_connections = self.connections.copy()
+
+        if not all_connections:
+            return
+
+        message = {
+            "type": "user_location",
+            "user_id": user_id,
+            "user_name": user_name,
+            "user_email": user_email,
+            "latitude": latitude,
+            "longitude": longitude,
+            "accuracy": accuracy,
+            "timestamp": timestamp.isoformat() if hasattr(timestamp, 'isoformat') else str(timestamp),
+        }
+
+        json_message = json.dumps(message)
+
+        disconnected = []
+        for websocket in all_connections:
+            try:
+                await websocket.send_text(json_message)
+            except Exception as e:
+                logger.warning(f"Failed to send user location to websocket: {e}")
+                disconnected.append(websocket)
+
+        for websocket in disconnected:
+            await self.disconnect(websocket)
+
     async def handle_message(self, websocket: WebSocket, data: str):
         """Handle incoming WebSocket message."""
         try:

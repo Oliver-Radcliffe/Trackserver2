@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { devicesApi } from '../api/client';
+import { devicesApi, authApi } from '../api/client';
 import wsClient from '../api/websocket';
 
 const MAX_TRAIL_LENGTH = 10;
@@ -16,6 +16,7 @@ const useDevicesStore = create((set, get) => ({
   userLocation: null, // { latitude, longitude, accuracy, timestamp }
   userLocationError: null,
   isGettingUserLocation: false,
+  otherUserLocations: {}, // Map of userId -> { user_id, user_name, user_email, latitude, longitude, accuracy, timestamp }
 
   fetchDevices: async () => {
     set({ isLoading: true, error: null });
@@ -101,6 +102,42 @@ const useDevicesStore = create((set, get) => ({
       console.log('Alert received:', data);
       // Could show a notification here
     });
+
+    wsClient.on('user_location', (data) => {
+      get().updateUserLocation(data);
+    });
+  },
+
+  // Fetch initial user locations from the server
+  fetchUserLocations: async () => {
+    try {
+      const locations = await authApi.getUserLocations();
+      const locationsMap = {};
+      locations.forEach((loc) => {
+        locationsMap[loc.user_id] = loc;
+      });
+      set({ otherUserLocations: locationsMap });
+    } catch (err) {
+      console.error('Failed to fetch user locations:', err);
+    }
+  },
+
+  // Update a single user's location (from WebSocket)
+  updateUserLocation: (data) => {
+    set((state) => ({
+      otherUserLocations: {
+        ...state.otherUserLocations,
+        [data.user_id]: {
+          user_id: data.user_id,
+          user_name: data.user_name,
+          user_email: data.user_email,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          accuracy: data.accuracy,
+          timestamp: data.timestamp,
+        },
+      },
+    }));
   },
 
   getDeviceWithPosition: (deviceId) => {
@@ -127,17 +164,30 @@ const useDevicesStore = create((set, get) => ({
     set({ isGettingUserLocation: true, userLocationError: null });
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
+        const locationData = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: position.timestamp,
+        };
+
         set({
-          userLocation: {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: position.timestamp,
-          },
+          userLocation: locationData,
           isGettingUserLocation: false,
           userLocationError: null,
         });
+
+        // Share location to backend (broadcasts to other users)
+        try {
+          await authApi.shareLocation(
+            locationData.latitude,
+            locationData.longitude,
+            locationData.accuracy
+          );
+        } catch (err) {
+          console.error('Failed to share location:', err);
+        }
       },
       (error) => {
         let errorMessage = 'Failed to get location';

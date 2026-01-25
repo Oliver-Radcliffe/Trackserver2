@@ -143,6 +143,7 @@ class User(Base):
 
     # Relationships
     account = relationship("Account", back_populates="users")
+    locations = relationship("UserLocation", back_populates="user")
 
 
 class Geofence(Base):
@@ -200,3 +201,23 @@ class Alert(Base):
 
     # Relationships
     device = relationship("Device", back_populates="alerts")
+
+
+class UserLocation(Base):
+    """User location model for tracking mobile users."""
+    __tablename__ = "user_locations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    accuracy = Column(Float)
+    timestamp = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
+
+    # Relationships
+    user = relationship("User", back_populates="locations")
+
+    __table_args__ = (
+        Index('idx_user_locations_user_time', 'user_id', 'timestamp'),
+    )
