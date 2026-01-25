@@ -10,7 +10,10 @@ from typing import Optional, Set
 from fastapi import WebSocket, WebSocketDisconnect
 from jose import JWTError, jwt
 
-from ..api.main import SECRET_KEY, ALGORITHM
+from ..config import config
+
+SECRET_KEY = config.jwt_secret
+ALGORITHM = "HS256"
 from ..protocol.message_parser import ParsedMessage
 
 logger = logging.getLogger(__name__)

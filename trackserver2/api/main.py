@@ -22,7 +22,8 @@ from ..models.models import Account, Device, Position, User, Geofence, Command, 
 from ..websocket.server import websocket_manager
 
 # JWT Configuration
-SECRET_KEY = os.environ.get("JWT_SECRET", "development-secret-key-change-in-production")
+from ..config import config
+SECRET_KEY = config.jwt_secret
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
